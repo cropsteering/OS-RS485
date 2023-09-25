@@ -13,13 +13,23 @@
 #include <Arduino.h>
 #include <ArduinoRS485.h>
 #include <vector>
+#include <MQTT.h>
+#include <logger.h>
+#include <Preferences.h>
 
+/** MQTT Lib */
+MQTT mqtt_lib;
+/** Logger Lib */
+LOGGER logger_lib;
+/** Preferences instance */
+Preferences flash_storage;
 /** RS485 reply message que */
 std::vector<int> reply_que;
 /** RS485 send que */
 std::vector<char*> send_que;
 /** Read time interval */
-uint64_t retry_time = 5000000;
+uint64_t delay_time;
+/** Set sensor baud rate */
 uint32_t baud_rate = 4800;
 /** Is RS485 busy */
 bool busy = false;
@@ -56,6 +66,28 @@ void setup()
         }
     }
 
+    /** Initialize flash storage */
+    R_LOG("FLASH", "Starting flash storage");
+    flash_storage.begin("RS485", false);
+    delay_time = flash_storage.getULong64("period", 15000000);
+    R_LOG("FLASH", "Read: Delay time " + String(delay_time));
+    CSV = flash_storage.getBool("csv", true);
+    R_LOG("FLASH", "Read: CSV " + String(CSV));
+    use_sd = flash_storage.getBool("sd", false);
+    R_LOG("FLASH", "Read: SD " + String(use_sd));
+    gmtoffset_sec = flash_storage.getInt("gmt", -12600);
+    R_LOG("FLASH", "Read: GMT " + String(gmtoffset_sec));
+    daylightoffset_sec = flash_storage.getUInt("dst", 3600);
+    R_LOG("FLASH", "Read: DST " + String(daylightoffset_sec));
+
+    /** 
+     * Join WiFi and connect to MQTT 
+     * Setup logger
+     * 
+     */
+    mqtt_lib.mqtt_setup();
+    logger_lib.logger_setup();
+
     /** 
      * Setup RS485
      * TODO: Make BAUD rate configurable
@@ -72,15 +104,18 @@ void setup()
  */
 void loop() 
 {
+    /** Loop our MQTT lib */
+    mqtt_lib.mqtt_loop();
+
     if(RS485.available())
     {
         reply_que.push_back(RS485.read());
     }
 
     static uint32_t last_time;
-    if ((micros() - last_time) >= retry_time && !busy)
+    if ((micros() - last_time) >= delay_time && !busy)
     {
-        last_time += retry_time;
+        last_time = micros();
         rs485_send();
     }
 }
@@ -168,10 +203,69 @@ void rs485_read()
               }
             }
         }
+        /** Send MQTT here */
         R_LOG("RS485", sensor_data);
+        mqtt_lib.mqtt_publish(String(addr), sensor_data);
+        logger_lib.write_sd(sensor_data);
 
         reply_que.clear();
     }
+}
+
+/**
+ * @brief Save key:value data to flash
+ * 
+ * @param key char
+ * @param value uint32_t
+ * @param restart restart SDI-12 sensor lookup
+ */
+void flash_32(const char* key, int32_t value, bool restart)
+{
+    flash_storage.putInt(key, value);
+    R_LOG("FLASH", "Write: " + String(key) + "/" + String(value));
+    if(restart) { }
+}
+
+/**
+ * @brief Save key:value data to flash
+ * 
+ * @param key char
+ * @param value uint32_t
+ * @param restart restart SDI-12 sensor lookup
+ */
+void flash_32u(const char* key, uint32_t value, bool restart)
+{
+    flash_storage.putUInt(key, value);
+    R_LOG("FLASH", "Write: " + String(key) + "/" + String(value));
+    if(restart) { }
+}
+
+/**
+ * @brief Save key:value data to flash
+ * 
+ * @param key char
+ * @param value uint64_t
+ * @param restart restart SDI-12 sensor lookup
+ */
+void flash_64u(const char* key, uint64_t value, bool restart)
+{
+    flash_storage.putULong64(key, value);
+    R_LOG("FLASH", "Write: " + String(key) + "/" + String(value));
+    if(restart) { }
+}
+
+/**
+ * @brief Save key:value data to flash
+ * 
+ * @param key char
+ * @param value bool
+ * @param restart restart SDI-12 sensor lookup
+ */
+void flash_bool(const char* key, bool value, bool restart)
+{
+    flash_storage.putBool(key, value);
+    R_LOG("FLASH", "Write: " + String(key) + "/" + String(value));
+    if(restart) { }
 }
 
 /**
@@ -183,7 +277,7 @@ void rs485_read()
 void R_LOG(String chan, String data)
 {
     #if DEBUG
-    String disp = "["+chan+"]" + data;
+    String disp = "["+chan+"] " + data;
     Serial.println(disp);
     #endif
 }
