@@ -17,6 +17,7 @@
 #include <mqtt_config.h>
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 /** SSL/TLS WiFi client */
 WiFiClientSecure secure_client;
@@ -245,7 +246,9 @@ void parse_config(String data)
         seglist.push_back(segment);
     }
 
-    u_int16_t cmd_int = stoi(seglist[0]);
+    uint16_t cmd_int = stoi(seglist[0]);
+    std::array<uint8_t, 8> msg_array;
+    String msg_name;
     switch(cmd_int)
     {
         /** CMD 0: CSV */
@@ -266,23 +269,42 @@ void parse_config(String data)
             flash_64u("period", delay_time, false);
             MQTT_LOG("MQTT", "Delay set to " + String(seglist[1].c_str()));
         break;
-        /** CMD 2: Change RS485 address */
+        /** CMD 2: Add repeated RS485 message */
         case 2:
-            // CHANGE RS485 ADR HERE
+            uint8_t temp_array[8];
+            for(int x = 0; x < 8; x++)
+            {
+                uint8_t num = std::stoul(seglist[x+1], nullptr, 16);
+                msg_array[x] = num;
+                temp_array[x] = num;
+            }
+            send_que.push_back(msg_array);
+            read_num++;
+            flash_32u("rnum", read_num, false);
+            msg_name = "msg" + String(read_num);
+            flash_bytes(msg_name.c_str(), temp_array, false);
+            MQTT_LOG("MQTT", "Added repeated RS485 message " + msg_name);
         break;
-        /** CMD 3: Add sensor data set */
+        /** CMD 3: Send a one time RS485 message */
         case 3:
-            // NOT NEEDED?
+            uint8_t ottemp_array[8];
+            for(int x = 0; x < 8; x++)
+            {
+                uint8_t num = std::stoul(seglist[x+1], nullptr, 16);
+                ottemp_array[x] = num;
+            }
+            send_onetime(ottemp_array);
+            MQTT_LOG("MQTT", "Sent one time RS485 message");
         break;
         /** CMD 4: Use SD card */
         case 4:
             if(seglist[1] == "true")
             {
                 use_sd = true;
-                MQTT_LOG("SD", "Set to true");
+                MQTT_LOG("SD", "Set to true, restarting...");
             } else {
                 use_sd = false;
-                MQTT_LOG("SD", "Set to false");
+                MQTT_LOG("SD", "Set to false, restarting...");
             }
             flash_bool("sd", use_sd, false);
             ESP.restart();
@@ -291,7 +313,33 @@ void parse_config(String data)
         case 5:
             flash_32("gmt", stoi(seglist[1]), false);
             flash_32u("dst", stoi(seglist[2]), false);
+            MQTT_LOG("MQTT", "Changed GMT/DST, restarting...");
             ESP.restart();
+        break;
+        /** CMD 6: Change logger baud rate */
+        case 6:
+            flash_32u("baud", stoi(seglist[1]), false);
+            MQTT_LOG("MQTT", "Changed logger baud rate, restarting...");
+            ESP.restart();
+        break;
+        /** CMD 7: Delete repeated message */
+        case 7:
+            std::array<uint8_t, 8> del_array;
+            for(int x = 0; x < 8; x++)
+            {
+                uint8_t num = std::stoul(seglist[x+1], nullptr, 16);
+                del_array[x] = num;
+            }
+            auto it = std::find(send_que.begin(), send_que.end(), del_array);
+            if (it != send_que.end()) 
+            {
+                send_que.erase(it);
+                MQTT_LOG("MQTT", "Match found, deleting");
+                read_num--;
+                flash_32u("rnum", read_num, false);
+            } else {
+                MQTT_LOG("MQTT", "Could not find match");
+            }
         break;
     }
 }
