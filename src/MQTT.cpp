@@ -285,7 +285,7 @@ void parse_config(String data)
             flash_bytes(msg_name.c_str(), temp_array, false);
             MQTT_LOG("MQTT", "Added repeated RS485 message " + msg_name);
         break;
-        /** CMD 3: Send a one time RS485 message */
+        /** CMD 3: Send a one time RS485 message, no MQTT/logger */
         case 3:
             uint8_t ottemp_array[8];
             for(int x = 0; x < 8; x++)

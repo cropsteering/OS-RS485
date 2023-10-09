@@ -191,6 +191,7 @@ void rs485_send()
 /**
  * @brief Send RS485 message one time
  * Used for things like config settings
+ * Nothing sent to logger or MQTT
  * 
  * @param value 
  */
