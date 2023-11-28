@@ -265,7 +265,7 @@ void rs485_read(bool mqtt_send)
                 {
                     sensor_data += String(resultf) + "+";
                 } else {
-                    sensor_data += String(result) + "+";
+                    sensor_data += String(result) + ",";
                 }
               }
             }
