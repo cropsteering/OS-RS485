@@ -32,7 +32,7 @@ uint64_t connect_time;
 
 /** Forward declaration */
 void wifi_connect();
-String parse_data(String data);
+String parse_inc(String data);
 void mqtt_connect();
 void mqtt_downlink(char* topic, byte* message, unsigned int length);
 void MQTT_LOG(String chan, String data);
@@ -82,7 +82,7 @@ void MQTT::mqtt_publish(String addr, String data)
 {
     if(mqtt_client.connected()) 
     {
-        String mqtt_data = parse_data(data);
+        String mqtt_data = parse_inc(data);
         String mqtt_topic = String(MQTT_USER) + "/" + ZONE_NAME + "/" + addr;
         if(CSV)
         {
@@ -115,7 +115,7 @@ void MQTT::mqtt_publish(String addr, String data)
  * 
  * @param data 
  */
-String parse_data(String data)
+String parse_inc(String data)
 {
     String mqtt_data;
     std::stringstream ss(data.c_str());
@@ -237,7 +237,6 @@ void mqtt_downlink(char* topic, byte* message, unsigned int length)
  */
 void parse_config(String data)
 {
-    String config_data;
     std::stringstream ss(data.c_str());
     std::string segment;
     std::vector<std::string> seglist;
@@ -333,8 +332,10 @@ void parse_config(String data)
             auto it = std::find(send_que.begin(), send_que.end(), del_array);
             if (it != send_que.end()) 
             {
-                send_que.erase(it);
                 MQTT_LOG("MQTT", "Match found, deleting");
+                uint8_t index = std::distance(send_que.begin(), it);
+                send_que.erase(it);
+                delete_key("msg" + index);
                 read_num--;
                 flash_32u("rnum", read_num, false);
             } else {

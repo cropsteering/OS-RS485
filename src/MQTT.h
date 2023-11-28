@@ -41,5 +41,6 @@ void flash_64u(const char* key, uint64_t value, bool restart);
 void flash_bool(const char* key, bool value, bool restart);
 void flash_bytes(const char* key, uint8_t value[8], bool restart);
 void send_onetime(uint8_t value[8]);
+void delete_key(String key);
 
 #endif

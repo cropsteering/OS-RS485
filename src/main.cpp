@@ -112,11 +112,7 @@ void setup()
     mqtt_lib.mqtt_setup();
     logger_lib.logger_setup();
 
-    /** 
-     * Setup RS485
-     * TODO: Make BAUD rate configurable
-     *       via MQTT
-     */
+    /** Setup RS485 */
     R_LOG("RS485", "Starting bus " + String(baud_rate));
     RS485.begin(baud_rate);
     RS485.receive();
@@ -218,6 +214,7 @@ void send_onetime(uint8_t value[8])
 
 /**
  * @brief Read reply of sensors
+ * If MQTT send is off, show raw data
  * 
  */
 void rs485_read(bool mqtt_send)
@@ -257,9 +254,19 @@ void rs485_read(bool mqtt_send)
               float resultf = result / 10.0;
               if(y == (data_size/2)-1)
               {
-                  sensor_data += String(resultf);
+                if(mqtt_send)
+                {
+                    sensor_data += String(resultf);
+                } else {
+                    sensor_data += String(result);
+                }
               } else {
-                  sensor_data += String(resultf) + ", ";
+                if(mqtt_send)
+                {
+                    sensor_data += String(resultf) + ", ";
+                } else {
+                    sensor_data += String(result) + ", ";
+                }
               }
             }
         }
@@ -343,6 +350,16 @@ void flash_bytes(const char* key, uint8_t value[8], bool restart)
     flash_storage.putBytes(key, value, 8);
     R_LOG("FLASH", "Write: " + String(key));
     if(restart) { }
+}
+
+/**
+ * @brief Delete key saved to flash
+ * 
+ * @param key 
+ */
+void delete_key(String key)
+{
+  flash_storage.remove(key.c_str());
 }
 
 /**
