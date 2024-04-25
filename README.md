@@ -1,36 +1,18 @@
 # OS-RS485 - Alpha
 OpenSteering-RS485 Data logger
 
+Pins must be defined in rs485.h if you are using the RAK5802 you should set your pins as follows.
+
+#define RS485_DEFAULT_DE_PIN (0xff)
+#define RS485_DEFAULT_RE_PIN (0xff)
+#define SERIAL_PORT_HARDWARE Serial1
+
+
 # MQTT Downlink Config commands
 
-        /** CMD 0: CSV */
-        Turn CSV output on/off
-        example: 0+[TRUE/FALSE], 0+TRUE
-        saved to flash
-        
-        /** CMD 1: Sleep period */
-        Set sleep period (or time between readings), in seconds
-        example: 1+[SECONDS], 1+15
-        saved to flash
-        
-        /** CMD 2: Change address */
-        Change sensor address
-        example: 2+[CURRENT ADDRESS]+[NEW ADDRESS], 2+7+3
-        
-        /** CMD 3: Add sensor data set */
-        Add how many data sets a sensor has
-        example: 3+[SENSOR ID]+[#] (# is zero indexed), 3+12345+2
-        saved to flash
-        
-        /** CMD 4: Use SD card */
-        Turn on or off SD card logging completely
-        example: 4+[TRUE/FALSE], 4+FALSE
-        saved to flash
+To start rs485 measurements, with a single ComWinTop THC-S rs485 Soil sensor, send the following command.
 
-        /** CMD 5: Change GMT/DST offset */
-        Set timezone and DST
-        example: 5+[GMT OFFSET]+[DST OFFSET], 5+-12600+3600
-        saved to flash
+2+01+03+00+00+00+03+05+CB
 
 You can send these via MQTT downlink to the following sub
   
