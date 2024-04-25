@@ -4,8 +4,11 @@ OpenSteering-RS485 Data logger
 Pins must be defined in rs485.h if you are using the RAK5802 you should set your pins as follows.
 
 #define RS485_DEFAULT_DE_PIN (0xff)
+
 #define RS485_DEFAULT_RE_PIN (0xff)
+
 #define SERIAL_PORT_HARDWARE Serial1
+
 
 
 # MQTT Downlink Config commands
